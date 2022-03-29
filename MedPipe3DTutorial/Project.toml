@@ -1,0 +1,4 @@
+name = "MedPipe3DTutorial"
+uuid = "4d077fe3-2c92-4fe9-a3fd-d02a3ee768c2"
+authors = ["Jakub Mitura <53857487+jakubMitura14@users.noreply.github.com>"]
+version = "0.1.0"
