@@ -96,6 +96,33 @@ mainScrollDat= loadFromHdf5Prim(fid,patienGroupName,addTextSpecs,listOfColorUsed
 
 #****************** constructing probability distributions
 
+"""
+works only for 3d cartesian coordinates
+  cart - cartesian coordinates of point where we will add the dimensions ...
+"""
+function cartesianTolinear(pointCart::CartesianIndex{3}) :: Int16
+   abs(pointCart[1])+ abs(pointCart[2])+abs(pointCart[3])
+end
+
+
+"""
+point - cartesian coordinates of point around which we want the cartesian coordeinates
+return set of cartetian coordinates of given distance -patchSize from a point
+"""
+function cartesianCoordAroundPoint(pointCart::CartesianIndex{3}, patchSize ::Int)
+ones = CartesianIndex(patchSize,patchSize,patchSize) # cartesian 3 dimensional index used for calculations to get range of the cartesian indicis to analyze
+out = Array{CartesianIndex{3}}(UndefInitializer(), 6+2*patchSize^4)
+index =0
+for J in (pointCart-ones):(pointCart+ones)
+  diff = J - pointCart # diffrence between dimensions relative to point of origin
+    if cartesianTolinear(diff) <= patchSize
+      index+=1
+      out[index] = J
+    end
+    end
+return out[1:index]
+end
+
 
 """
 By iteratively  searching through the mask M array cartesian coordinates of all entries with value 7 will be returned.
@@ -111,7 +138,7 @@ markings - calculated  earlier in getCoordinatesOfMarkings  z is the size of the
 return the patch of pixels around each marked point
 """
 function getPatchAroundMarks(markings ::Vector{CartesianIndex{3}}, z::Int) 
-    return [getCartesianAroundPoint(x,z) for x in markings]
+    return [cartesianCoordAroundPoint(x,z) for x in markings]
 end    
 
 """
@@ -151,6 +178,9 @@ end
 
 #we load image from displayed object
 image= getArrByName("image" ,mainScrollDat)
+manualModif= getArrByName("manualModif" ,mainScrollDat)
+
+maximum(manualModif) # it should be greater than 0 if you marked anything in array
 ##coordinates of manually set points
 coordsss= getCoordinatesOfMarkings(eltype(image),eltype(manualModif),  manualModif, image) |>
     (seedsCoords) ->getPatchAroundMarks(seedsCoords,z ) |>
@@ -185,7 +215,6 @@ indicies
 #ditributions from diffrent clusters
 chosenDistribs = map(ind->distribs[ind] ,indicies)
 
-
 #************************ applying  probability distributions to image 
 
 
@@ -216,6 +245,8 @@ allConstants = map(distr-> getDistrConstants(distr)  , chosenDistribs) |>
 
 
 #### defining CUDA kernel
+mainArrSize= size(image)
+algoOutput= getArrByName("algoOutput" ,mainScrollDat)
 
 """
 utility macro to iterate in given range around given voxel
@@ -321,7 +352,7 @@ algoOutputB[:,:,:]=algoOutput./maxEl
 # end
 
 
-saveMaskbyName(fid,patienGroupName , mainScrollDat, "algoOutput")
+saveMaskbyName(fid,patienGroupName , mainScrollDat, "algoOutput","boolLabel")
 
 #******************************************************** relaxation labelling
 
@@ -339,10 +370,6 @@ using ParallelStencil
 using ParallelStencil.FiniteDifferences3D
 
 @init_parallel_stencil(CUDA, Float64, 3);
-
-
-
-
 
 
 #cutoff set manually to rate
@@ -368,8 +395,13 @@ end
     return
 end
 
-rate=0.15
-relaxLabels(algoOutputGPU,50,rate)
+rate=0.05
+relaxLabels(algoOutputGPU,19,rate)
+
+
+Int(round(sum(algoOutputGPU)))# just to check is data there
+
+
 
 copyto!(algoOutput,algoOutputGPU)
 Int(round(sum(algoOutput)))# just to check is anythink copied  #85162
@@ -386,6 +418,10 @@ algoOutputB[:,:,:]=algoOutput
 
 # first we need to define the cutoff  over which we will decide that probability indicates that it is truly a liver 
 #####simple  tresholding
+
+using MedEval3D
+using MedEval3D.BasicStructs
+using MedEval3D.MainAbstractions
 function tresholdingKernel(mainArrSize,output)
   
         x= (threadIdx().x+ ((blockIdx().x -1)*CUDA.blockDim_x()))
@@ -409,7 +445,7 @@ using MedEval3D.BasicStructs
 using MedEval3D.MainAbstractions
 conf= ConfigurtationStruct(md=true, dice=true)
 numberToLookFor = 1.0
-liverGold= getArrByName("liver" ,mainScrollDat)
+liverGold= getArrByName("labelSet" ,mainScrollDat)
 
 preparedDict=MedEval3D.MainAbstractions.prepareMetrics(conf)
 calculateAndDisplay(preparedDict,mainScrollDat, conf, numberToLookFor,CuArray(liverGold),algoOutputGPU )
@@ -424,13 +460,6 @@ Int(round(sum(algoOutput)))# just to check is anythink copied  #85162
 #copy and divide by max so will be easier to visualize
 algoOutputB= getArrByName("algoOutput" ,mainScrollDat)
 algoOutputB[:,:,:]=algoOutput
-
-
-
-
-
-
-
 
 
 
