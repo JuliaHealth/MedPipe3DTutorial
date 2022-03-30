@@ -526,7 +526,7 @@ Scroll up and down and in the top left corner you should see displayed requested
 
 ![image](https://user-images.githubusercontent.com/53857487/160757193-14f46edf-de3d-47be-ba1a-0795f7b7a327.png)
 
-Now is time toreiterate , try to tweak hyperparameters, use other algorithm etc. ... What is most important as presented above one is free to use basically any Julia package, as you probably now signifacant amount of algorithms are implemented only in Julia and not in other programming languages, hence they were not applied to medical image segmentation task yet, so the only thing needed is an idea, becouse tool are already here :). 
+Now is time toreiterate , try to tweak hyperparameters, use other algorithm etc. ... What is most important as presented above one is free to use basically any Julia package, as you probably now signifacant amount of algorithms are implemented only in Julia and not in other programming languages, hence they were not applied to medical image segmentation task yet, so the only thing needed is an idea, becouse tools are already here :). 
 
 
 
