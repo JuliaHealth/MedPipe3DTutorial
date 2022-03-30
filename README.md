@@ -398,6 +398,10 @@ Number depends on order by which given mask was supplied - you can make sure the
 ```
 julia> [ Info:  set visibility of labelSet to false
 ```
+![image](https://user-images.githubusercontent.com/53857487/160758235-30b9119a-a806-441e-81cc-22cf2d765628.png)
+
+
+
 
 To make the labelSet visible just press shift+1
 Remember that for any shortcut to work you need to have Segmentation visualization viewer as an active window.
