@@ -526,6 +526,8 @@ Scroll up and down and in the top left corner you should see displayed requested
 
 ![image](https://user-images.githubusercontent.com/53857487/160757193-14f46edf-de3d-47be-ba1a-0795f7b7a327.png)
 
+Now is time toreiterate , try to tweak hyperparameters, use other algorithm etc. ... What is most important as presented above one is free to use basically any Julia package, as you probably now signifacant amount of algorithms are implemented only in Julia and not in other programming languages, hence they were not applied to medical image segmentation task yet, so the only thing needed is an idea, becouse tool are already here :). 
+
 
 
 
@@ -535,6 +537,23 @@ Lastly we can save our output and close the connection to HDF5
 saveManualModif(fid,patienGroupName , mainScrollDat)
 
 close(fid)
+```
+
+If You will find usefull my work please cite it 
+
+```
+@Article{Mitura2021,
+  author   = {Mitura, Jakub and Chrapko, Beata E.},
+  journal  = {Zeszyty Naukowe WWSI},
+  title    = {{3D Medical Segmentation Visualization in Julia with MedEye3d}},
+  year     = {2021},
+  number   = {25},
+  pages    = {57--67},
+  volume   = {15},
+  doi      = {10.26348/znwwsi.25.57},
+  keywords = {OpenGl, Computer Tomagraphy, PET/CT, medical image annotation, medical image visualization},
+}
+
 ```
 
 
