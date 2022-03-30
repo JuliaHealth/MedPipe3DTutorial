@@ -557,11 +557,6 @@ If You will find usefull my work please cite it
 ```
 
 
-
-
-
-
-
 [1] https://bmcmedimaging.biomedcentral.com/articles/10.1186/s12880-015-0068-x
 
 
