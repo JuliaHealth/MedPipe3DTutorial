@@ -399,20 +399,15 @@ rate=0.05
 relaxLabels(algoOutputGPU,19,rate)
 
 
-Int(round(sum(algoOutputGPU)))# just to check is data there
 
 
 
 copyto!(algoOutput,algoOutputGPU)
 Int(round(sum(algoOutput)))# just to check is anythink copied  #85162
 
-#copy and divide by max so will be easier to visualize
-algoOutputB= getArrByName("algoOutput" ,mainScrollDat)
-algoOutputB[:,:,:]=algoOutput
 
 
 
-#relaxLabels(algoOutputGPU,10)
 
 ###########7) displaying performance metrics
 
@@ -453,13 +448,13 @@ calculateAndDisplay(preparedDict,mainScrollDat, conf, numberToLookFor,CuArray(li
 
 
 
-mainScrollDat.mainTextToDisp
+# mainScrollDat.mainTextToDisp
 
-copyto!(algoOutput,algoOutputGPU)
-Int(round(sum(algoOutput)))# just to check is anythink copied  #85162
-#copy and divide by max so will be easier to visualize
-algoOutputB= getArrByName("algoOutput" ,mainScrollDat)
-algoOutputB[:,:,:]=algoOutput
+# copyto!(algoOutput,algoOutputGPU)
+# Int(round(sum(algoOutput)))# just to check is anythink copied  #85162
+# #copy and divide by max so will be easier to visualize
+# algoOutputB= getArrByName("algoOutput" ,mainScrollDat)
+# algoOutputB[:,:,:]=algoOutput
 
 
 
