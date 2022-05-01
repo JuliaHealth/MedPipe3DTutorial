@@ -15,8 +15,9 @@ In case any of this packages are not already installed do it now
 
 ```
 using Pkg
-Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
+#Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 
+using MedPipe3D
 using MedEye3d
 using Distributions
 using Clustering
