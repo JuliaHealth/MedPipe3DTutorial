@@ -51,24 +51,24 @@ trainingKeys= keys(fid)[1:5]
 valKeys= keys(fid)[6:8]
 
 
-# function loadfn_image(groupKey)
-#     gr= getGroupOrCreate(fid, string(groupKey))  
-#     return gr["image"][:,:,:,1,1]
-# end
+function loadfn_image(groupKey)
+    gr= getGroupOrCreate(fid, string(groupKey))  
+    return gr["image"][:,:,:,1,1]
+end
 
 
-# function loadfn_label(groupKey)
-#     gr= getGroupOrCreate(fid, string(groupKey))  
-#     return  gr["labelSet"][:,:,:,1,1]
-# end
+function loadfn_label(groupKey)
+    gr= getGroupOrCreate(fid, string(groupKey))  
+    return  gr["labelSet"][:,:,:,1,1]
+end
 
 
-# data_image(trainingKeys) = MLUtils.mapobs(loadfn_image,trainingKeys)
-# data_label(trainingKeys) =  MLUtils.mapobs(loadfn_label, trainingKeys)
-# data = (
-#     data_image(trainingKeys),
-#     data_label(trainingKeys),
-# )
+data_image(trainingKeys) = MLUtils.mapobs(loadfn_image,trainingKeys)
+data_label(trainingKeys) =  MLUtils.mapobs(loadfn_label, trainingKeys)
+data = (
+    data_image(trainingKeys),
+    data_label(trainingKeys),
+)
 
 
 # testmethod =   BlockTask(

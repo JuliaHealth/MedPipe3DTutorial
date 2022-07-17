@@ -31,10 +31,10 @@ CUDA.allowscalar(true)
 #downloaded from https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2
 
 #directory where we want to store our HDF5 that we will use
-pathToHDF5="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
 #directory of folder with files in this directory all of the image files should be in subfolder volumes 0-49 and labels labels if one ill use lines below
 fid = h5open(pathToHDF5, "w")
-root_dir = "/media/jakub/NewVolume/forJuliaData/spleenData/Task09_Spleen/Task09_Spleen/Task09_Spleen/"
+root_dir = "/home/sliceruser/data/Spleen/Task09_Spleen"
 targetSpacing=(1.5,1.5,1.5)
 
 # resource = "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task09_Spleen.tar"
