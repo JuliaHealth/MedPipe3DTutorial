@@ -3,7 +3,6 @@ using Pkg
 #Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 
-using MedEye3d
 using Distributions
 using Clustering
 using IrrationalConstants
@@ -65,6 +64,8 @@ function loadfn_label(groupKey)
 end
 
 
+
+
 data_image(trainingKeys) = MLUtils.mapobs(loadfn_image,trainingKeys)
 data_label(trainingKeys) =  MLUtils.mapobs(loadfn_label, trainingKeys)
 data = (
@@ -72,6 +73,8 @@ data = (
     data_label(trainingKeys),
 )
 
+
+#gpu_train_loader = Flux.DataLoader(data, batchsize = 16)
 
 # testmethod =   BlockTask(
 #     (Image{3}(), Label(1:2)),
