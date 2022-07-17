@@ -43,7 +43,9 @@ code is based on https://github.com/Dale-Black/MedicalTutorials.jl/tree/master/s
 """
 
 
-pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+#pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
+
 fid = h5open(pathToHDF55, "r+")
 max_epochs=3
 val_interval=2
@@ -156,7 +158,7 @@ for epoch in 1:maxEpoch
 end
 
 
-modelpath = joinpath("/media/jakub/NewVolume/projects", "model.bson")
+modelpath = joinpath("/home/sliceruser/data", "model.bson")
 let model = cpu(model) ## return model to cpu before serialization
     BSON.@save modelpath model 1
 end

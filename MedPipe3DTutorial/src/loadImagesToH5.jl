@@ -126,7 +126,6 @@ keys(fid)
 close(fid)
 
 
-pathToHDF5="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
 #directory of folder with files in this directory all of the image files should be in subfolder volumes 0-49 and labels labels if one ill use lines below
 fid = h5open(pathToHDF5, "r+")
 
