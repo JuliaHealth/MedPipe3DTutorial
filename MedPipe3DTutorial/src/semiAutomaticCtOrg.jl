@@ -10,7 +10,7 @@ using ParallelStencil
 using MedPipe3D.LoadFromMonai, MedPipe3D.HDF5saveUtils,MedPipe3D.visualizationFromHdf5, MedPipe3D.distinctColorsSaved
 using CUDA
 using HDF5,Colors
-#]add MedEye3d Distributions Clustering IrrationalConstants ParallelStencil CUDA HDF5 MedEval3D MedPipe3D Colors
+#]add Plots MedEye3d Distributions Clustering IrrationalConstants ParallelStencil CUDA HDF5 MedEval3D MedPipe3D Colors
 
 #directory where we want to store our HDF5 that we will use
 pathToHDF5="/home/jakub/projects/hdf5Data/smallDataSet.hdf5"
@@ -33,7 +33,7 @@ zipped= collect(zip(train_images,train_labels))
 tupl=zipped[patentNum]
 
 #proper loading
-loaded = LoadFromMonai.loadByMonaiFromImageAndLabelPaths(tupl[1],tupl[2])
+loaded = LoadFromMonai.loadBySitkromImageAndLabelPaths(tupl[1],tupl[2])
 #!!!!!!!!!! important if you are just creating the hdf5 file  do it with "w" option otherwise do it with "r+"
 #fid = h5open(pathToHDF5, "r+") 
 gr= getGroupOrCreate(fid, patienGroupName)
@@ -105,13 +105,7 @@ algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
 
 #2) primary display of chosen image 
 mainScrollDat= loadFromHdf5Prim(fid,patienGroupName,addTextSpecs,listOfColorUsed)
-mainScrollDat.dataToScroll
 
-
-
-labelSet
-manualModif
-algoOutput
 
 
 #now we can use manualModif array to  create annotations
@@ -426,7 +420,7 @@ end
 end
 
 rate=0.05
-relaxLabels(algoOutputGPU,19,rate)
+relaxLabels(algoOutputGPU,15,rate)
 
 
 
