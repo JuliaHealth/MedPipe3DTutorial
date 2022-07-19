@@ -1,6 +1,5 @@
 using Pkg
 Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
-#Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 using MedPipe3D
 using Distributions
 using Clustering
@@ -17,7 +16,6 @@ using MedEval3D.MainAbstractions
 using MedEval3D
 using MedEval3D.BasicStructs
 using MedEval3D.MainAbstractions
-using UNet
 using Hyperopt,Plots
 using MedPipe3D.LoadFromMonai
 using Flux
@@ -25,23 +23,16 @@ using Distributed
 #]add Flux Hyperopt Plots UNet MedEye3d Distributions Clustering IrrationalConstants ParallelStencil CUDA HDF5 MedEval3D MedPipe3D Colors
 CUDA.allowscalar(true)
 
-
-
 #downloaded from https://drive.google.com/drive/folders/1HqEgzS8BV2c7xYNrZdEAnrHk7osJJ--2
 
 #directory where we want to store our HDF5 that we will use
-pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
+#pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
+pathToHDF5="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+
 #directory of folder with files in this directory all of the image files should be in subfolder volumes 0-49 and labels labels if one ill use lines below
 fid = h5open(pathToHDF5, "w")
-root_dir = "/home/sliceruser/data/Spleen/Task09_Spleen"
+root_dir =  "/media/jakub/NewVolume/forJuliaData/spleenData/Task09_Spleen/Task09_Spleen/Task09_Spleen/"
 targetSpacing=(1.5,1.5,1.5)
-
-# resource = "https://msd-for-monai.s3-us-west-2.amazonaws.com/Task09_Spleen.tar"
-# compressed_file = joinpath(root_dir, "Task09_Spleen.tar")
-# md5 = "410d4a301da4e5b2f6f86ec3ddba524e"
-# monai=MedPipe3D.LoadFromMonai.getMonaiObject()
-# monai.apps.download_and_extract(resource, compressed_file, root_dir, md5)
-
 
 train_labels = map(fileEntry-> joinpath(root_dir,"labelsTr",fileEntry),readdir(joinpath(root_dir,"labelsTr"); sort=true))
 train_images = map(fileEntry-> joinpath(root_dir,"imagesTr",fileEntry),readdir(joinpath(root_dir,"imagesTr"); sort=true))
@@ -60,35 +51,31 @@ sizes=Vector{Tuple{Int64, Int64, Int64}}(undef,length(zipped))
 noError=falses(length(zipped))#Vector{Bool}(false,length(zipped))
 chosen = zipped#[ifLiverPresent]
 
-for (indexx,tupl) in enumerate(zipped)
-        print("index $indexx ")
-        #try
-            loaded = LoadFromMonai.loadBySitkromImageAndLabelPaths(tupl[1],tupl[2],targetSpacing )
-            noError[indexx]=true
-            sizes[indexx]=size(loaded[1])
-            print(size(loaded[1]))
-        #catch
-         #   print("error with $indexx")
-        #end    
-end    
+# for (indexx,tupl) in enumerate(zipped)
+#         print("index $indexx ")
+#         #try
+#             loaded = LoadFromMonai.loadBySitkromImageAndLabelPaths(tupl[1],tupl[2],targetSpacing )
+#             noError[indexx]=true
+#             sizes[indexx]=size(loaded[1])
+#             print(size(loaded[1]))
+#         #catch
+#          #   print("error with $indexx")
+#         #end    
+# end    
 
 
 
 
 sum(noError)
 # we get the maximum size so we will get in the en uniform size
-chosen = zipped[noError]
+chosen = zipped
 
-maxX=  Int(ceil(maximum(map(tupl->tupl[1],sizes))/16)*16)
-maxY=  Int(ceil(maximum(map(tupl->tupl[2],sizes))/16)*16)
-maxZ=  Int(ceil(maximum(map(tupl->tupl[3],sizes))/16)*16)
+maxX= 384 #Int(ceil(maximum(map(tupl->tupl[1],sizes))/64)*64)
+maxY= 384 #Int(ceil(maximum(map(tupl->tupl[2],sizes))/64)*64)
+maxZ= 384 #Int(ceil(maximum(map(tupl->tupl[3],sizes))/64)*64)
 
-
-
-print("maxes ($maxX , $maxY , $maxZ  )") #(336 , 336 , 352  )
+print("maxes ($maxX , $maxY , $maxZ  )") 
 # print(chosen)
-
-
 
 #we save transformed data into hdf5 so we will not need to transform it on loading data into flux
 #one could consider doing it in parallel but would need to setup parallel HDF5 https://juliaio.github.io/HDF5.jl/stable/#Parallel-HDF5
@@ -97,10 +84,19 @@ for (indexx,tupl) in enumerate(chosen)
         patienGroupName=string(indexx)
         #if the image was already loaded earlier we can ignore it
         if(!haskey(fid, patienGroupName))
-            loaded = LoadFromMonai.loadandPad(tupl[1],tupl[2],targetSpacing, (maxX,maxY, maxZ) )
+            image = LoadFromMonai.loadandPadSingle(
+                tupl[1]
+                ,targetSpacing
+                ,(maxX,maxY, -1),false ) 
+
+            label = LoadFromMonai.loadandPadSingle(
+                    tupl[2]
+                    ,targetSpacing
+                    ,(maxX,maxY, -1) ,true)                 
+            sizz= size(image[1])
             gr= getGroupOrCreate(fid, patienGroupName)
             #we are intrested only about liver
-            labelArr=loaded[2]
+            labelArr=label[1]
             #there are some artifacts on edges
             labelArr[1,:,:].=0
             labelArr[:,1,:].=0
@@ -108,14 +104,14 @@ for (indexx,tupl) in enumerate(chosen)
 
             labelArr[maxX,:,:].=0
             labelArr[:,maxY,:].=0
-            labelArr[:,:,maxZ].=0
+            labelArr[:,:,sizz[3]].=0
             #typeof(loaded[1])
 
-            imageArr= reshape( loaded[1],(maxX,maxY, maxZ, 1, 1))
-            labelArr= reshape( labelArr,(maxX,maxY, maxZ, 1, 1))
+            # imageArr= reshape( image[1],(maxX,maxY, maxZ, 1, 1))
+            # labelArr= reshape( labelArr,(maxX,maxY, maxZ, 1, 1))
 
-            saveMaskBeforeVisualization(fid,patienGroupName,imageArr,"image", "CT" )
-            saveMaskBeforeVisualization(fid,patienGroupName,labelArr,"labelSet", "boolLabel" )
+            saveMaskBeforeVisualization(fid,patienGroupName,image[1],"image", "CT" )
+            saveMaskBeforeVisualization(fid,patienGroupName,Float32.(labelArr),"labelSet", "boolLabel" )
             writeGroupAttribute(fid,patienGroupName, "spacing", [1,1,1])
     end
 end 

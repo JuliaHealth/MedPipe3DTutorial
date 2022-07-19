@@ -2,7 +2,6 @@
 using Pkg
 #Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
 Pkg.add(url="https://github.com/jakubMitura14/MedPipe3D.jl.git")
-
 using Distributions
 using Clustering
 using IrrationalConstants
@@ -18,7 +17,6 @@ using MedEval3D.MainAbstractions
 using MedEval3D
 using MedEval3D.BasicStructs
 using MedEval3D.MainAbstractions
-using UNet
 using Hyperopt,Plots
 using MedPipe3D.LoadFromMonai
 using Flux,MLUtils
@@ -33,165 +31,195 @@ using Flux,FastAI,DataAugmentation,DLPipelines,MLDataPattern,ImageCore
 using DataAugmentation: OneHot, Image
 using MLUtils
 CUDA.allowscalar(true)
-
+using CUDA: CuIterator
+using BSON
+include("/home/jakub/projects/MedPipe3DTutorial/MedPipe3DTutorial/src/Unet.jl")
+using Pkg
+using Random
+using Unzip
+#Pkg.add(url="https://github.com/DhairyaLGandhi/UNet.jl.git")
+#using UNet
+using Base.Iterators
 """
 First we need to iterate through data load it into Hdf5 and collect the sizes - sizes will be needed as neural network expect uniform sizes of all training and test cases so we will need to get biggest image and pad others accordingly
 code is based on https://github.com/Dale-Black/MedicalTutorials.jl/tree/master/src/3D_Segmentation/Heart
-
-
 """
 
 
-#pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
-pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
+
+
+pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+modelpath = joinpath("/media/jakub/NewVolume/projects", "modelB.bson")
+
+#pathToHDF5="/home/sliceruser/data/bigDataSet.hdf5"
 
 fid = h5open(pathToHDF55, "r+")
 max_epochs=3
 val_interval=2
-trainingKeys= keys(fid)[1:5]
+trainingKeys= keys(fid)[1:80]
 valKeys= keys(fid)[6:8]
+batchSize=16
+
+model = UNet( 1,1,stages=4) |> gpu
 
 
-function loadfn_image(groupKey)
-    gr= getGroupOrCreate(fid, string(groupKey))  
-    return gr["image"][:,:,:,1,1]
-end
+#model(rand(384,384,1,1)|>gpu)
 
+#rep = Iterators.repeated((w, w′), 10);
+# model = Flux.Chain(
+#     Unet(1, 1),
+#   Flux.softmax)|>gpu
+#model=Unet(1, 1)|>gpu
 
-function loadfn_label(groupKey)
-    gr= getGroupOrCreate(fid, string(groupKey))  
-    return  gr["labelSet"][:,:,:,1,1]
-end
-
-
-
-
-data_image(trainingKeys) = MLUtils.mapobs(loadfn_image,trainingKeys)
-data_label(trainingKeys) =  MLUtils.mapobs(loadfn_label, trainingKeys)
-data = (
-    data_image(trainingKeys),
-    data_label(trainingKeys),
-)
-
-
-#gpu_train_loader = Flux.DataLoader(data, batchsize = 16)
-
-# testmethod =   BlockTask(
-#     (Image{3}(), Label(1:2)),
-#     (
-#         ProjectiveTransforms((336, 336,352)),
-#         ImagePreprocessing(),
-#         OneHot()
-#     )
-# )
-
-# image, mask = sample = MLUtils.getobs(data, 1);
-# blocks=(FastAI.Image{3}(), FastAI.Label{UInt32}([UInt32(0),UInt32(1)]))
-# task = ImageClassificationSingle(blocks)
-
-
-function dice_metric(ŷ, y)
-    dice = 2 * sum(ŷ .& y) / (sum(ŷ) + sum(y))
-    return dice
-end
-
-function as_discrete(array, logit_threshold)
-    array = array .>= logit_threshold
-    return array
-end
-
-function dice_loss(ŷ, y)
-    ϵ = 1e-5
-    return loss = 1 - ((2 * sum(ŷ .* y) + ϵ) / (sum(ŷ .* ŷ) + sum(y .* y) + ϵ))
-end
-
-
-
-conv = (stride, in, out) -> Conv((3, 3, 3), in=>out, stride=stride, pad=SamePad())
-tran = (stride, in, out) -> ConvTranspose((3, 3, 3), in=>out, stride=stride, pad=SamePad())
-
-conv1 = (in, out) -> Chain(conv(1, in, out), BatchNorm(out), x -> leakyrelu.(x))
-conv2 = (in, out) -> Chain(conv(2, in, out), BatchNorm(out), x -> leakyrelu.(x))
-tran2 = (in, out) -> Chain(tran(2, in, out), BatchNorm(out), x -> leakyrelu.(x))
-
-
-function unet3D(in_chs, lbl_chs)
-    # Contracting layers
-    l1 = Chain(conv1(in_chs, 4))
-    l2 = Chain(l1, conv1(4, 4), conv2(4, 16))
-    l3 = Chain(l2, conv1(16, 16), conv2(16, 32))
-    l4 = Chain(l3, conv1(32, 32), conv2(32, 64))
-    l5 = Chain(l4, conv1(64, 64), conv2(64, 128))
-
-    # Expanding layers
-    l6 = Chain(l5, tran2(128, 64), conv1(64, 64))
-    l7 = Chain(Parallel(+, l6, l4), tran2(64, 32), conv1(32, 32))
-    l8 = Chain(Parallel(+, l7, l3), tran2(32, 16), conv1(16, 16))
-    l9 = Chain(Parallel(+, l8, l2), tran2(16, 4), conv1(4, 4))
-    l10 = Chain(l9, conv1(4, lbl_chs))
-end
-
-model = unet3D(1, 2)|> gpu
+# u = Unet(1)
 optimizer = Flux.ADAM(0.01)
-ps = Flux.params(model);
+parameters = Flux.params(model);
 loss_function = Flux.Losses.dice_coeff_loss
 
+"""
+Given 3D data divides it into batches of 2D slices across Z dimension
+it ignores last not full batch
+"""
+function divideToBatchInZ(fid,groupKey)
+    gr= getGroupOrCreate(fid, groupKey) 
+    imageArr=gr["image"][:,:,:]
+    labelArr=gr["labelSet"][:,:,:]
+    return filter(tupl->sum(tupl[2])>0 ,getSlices(imageArr,labelArr) )
+end #divideToBatchInZ
 
-
-maxEpoch=2
-for epoch in 1:maxEpoch
-    print("epoch ",epoch)
-    @showprogress for groupKey in trainingKeys
-        print("groupKey ",groupKey)
-        gr= getGroupOrCreate(fid, groupKey)    
-        x= gr["image"][:,:,:,:,:]
-        y= Flux.onehotbatch(gr["labelSet"][:,:,:,:,:],0:1 )
-        print("hd loaded")
-        x, y = x |> gpu, y |> gpu
-        print("passed on gpu")
-        gs = Flux.gradient(ps) do
-                ŷ = model(x)
-                l=loss(ŷ, y)
-                print(l)
-                l
-            end
-
-        Flux.Optimise.update!(opt, ps, gs)
+"""
+get slices out of image and reshape them
+"""
+function getSlices(imageArr,labelArr)
+    sizz= size(imageArr)
+    return map(index-> (reshape(imageArr[:,:,index], (size(imageArr[:,:,index])...,1,1)) 
+                        ,reshape(labelArr[:,:,index], (size(labelArr[:,:,index])...,1,1)))
+                , 1:sizz[3]   )
     end
+
+"""
+given list of imagesconcatenates slices that contain any posiive entry
+
+"""
+function fuseSlicesMultiImage(imageNamesList,fid )
+    list= map(groupKey-> divideToBatchInZ(fid,groupKey),imageNamesList)
+    return cat(list...,dims=1)
+end    
+
+
+"""
+take list of slices and create batches from it
+"""
+function divideIntoBatches(listSlices, batchSize)
+    sizz=size(listSlices)
+    floored= Int(floor(sizz[1]/batchSize))-1
+    return map(i->batchIm=cat(listSlices[(i-1)*batchSize:(i-1)*batchSize]...,dims=4),1:floored ) 
 end
 
+#get all slices with some spleen on it
+posLayers=fuseSlicesMultiImage(trainingKeys,fid )
+nepochs=650
 
-modelpath = joinpath("/home/sliceruser/data", "model.bson")
+# posLayers=unzip(posLayers)
+#train_loader = Flux.DataLoader((posLayers[1], posLayers[2]), batchsize = 8, shuffle = true)
+for epoch in 1:nepochs    
+    posLayers=shuffle(posLayers)
+    for (batch, (x,y)) in enumerate(CuIterator(posLayers))
+    # for (xtrain_batch, ytrain_batch) in train_loader
+    #     x, y = gpu(xtrain_batch), gpu(ytrain_batch)
+        gradients = gradient(() -> loss_function(model(x), y), parameters)
+        Flux.Optimise.update!(optimizer, parameters, gradients)
+    end
+    print(" epoch ",epoch)
+
+end
+
+using BSON
 let model = cpu(model) ## return model to cpu before serialization
-    BSON.@save modelpath model 1
+    BSON.@save modelpath model
 end
-    
-gr= getGroupOrCreate(fid, "1")
-arr=gr["image"][:,:,:,:,:]
-arr|>gpu
 
 
-gpu_train_loader = Flux.DataLoader(mapobs(gpu, (xtrain, ytrain)), batchsize = 16)
+using BSON: @load
+@load modelpath model
 
 
-train!(loss_function, ps, data, optimizer)
+using MedPipe3D
+exampleKey= keys(fid)[81]
+# divided = divideToBatchInZ(batchSize,fid,exampleKey)
+gr= getGroupOrCreate(fid, exampleKey) 
+imageArr=gr["image"][:,:,:]
+labelArr=gr["labelSet"][:,:,:]
 
-# dls = data
-# #model = taskmodel(task, Models.xresnet18())
-# lossfn = tasklossfn(task)
-# learner = Learner(model, dls, ADAM(), loss_function, Metrics(accuracy))#ToGPU()
+slicessIm=getSlices(imageArr,labelArr)
+slicessIm=unzip(slicessIm)
+slicessIm=slicessIm[1]
+
+modelOutput= map(batch-> model(batch)   ,slicessIm) 
+modelOutput=modelOutput |>cpu 
+modelOutputCat=cat(map(el->el[:,:,1,:], modelOutput)..., dims=3)
+sizz_out=size(modelOutputCat)
+grr= getGroupOrCreate(fid, exampleKey) 
+imageArr=Int32.(round.(grr["image"][:,:,1:sizz_out[3]]))
+labelArr=grr["labelSet"][:,:,1:sizz_out[3]]
+
+
+toSaveKey="506"
+grr= getGroupOrCreate(fid, toSaveKey) 
+writeGroupAttribute(fid,toSaveKey, "spacing", [1.5,1.5,1.5])
+
+saveMaskBeforeVisualization(fid,toSaveKey,imageArr,"image", "CT" )
+saveMaskBeforeVisualization(fid,toSaveKey,labelArr,"labelSet", "boolLabel" )
+
+listOfColorUsed= falses(18)
+
+#manual Modification array
+algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
+    name = "algoOutput",
+    # we point out that we will supply multiple colors
+    isContinuusMask=true,
+    colorSet = [getSomeColor(listOfColorUsed),getSomeColor(listOfColorUsed)]
+    ,minAndMaxValue= Float32.([0,1])# values between 0 and 1 as this represent probabilities
+   )
+
+    addTextSpecs=Vector{MedEye3d.ForDisplayStructs.TextureSpec}(undef,1)
+    addTextSpecs[1]=algoVisualization
+
+mainScrollDat= loadFromHdf5Prim(fid,toSaveKey,addTextSpecs,listOfColorUsed)
+
+
+algoOutput= getArrByName("algoOutput" ,mainScrollDat)
+algoOutput[:,:,:]=modelOutputCat
+
+
+saveMaskbyName(fid,toSaveKey , mainScrollDat, "algoOutput", "contLabel")
+
+close(fid)
+
+maximum(modelOutputCat)
 
 
 
+using MedEye3d
 
-train_loader = Flux.DataLoader((data_image(trainingKeys), data_label(trainingKeys)), batchsize = 1, shuffle = true)
-# ... model, optimizer and loss definitions
-for epoch in 1:nepochs
-    for (xtrain_batch, ytrain_batch) in train_loader
-        print(MLUtils.getobs(xtrain_batch, 1))
+pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+modelpath = joinpath("/media/jakub/NewVolume/projects", "modelB.bson")
+listOfColorUsed= falses(18)
 
-        # x, y = gpu(xtrain_batch), gpu(ytrain_batch)
-        # gradients = gradient(() -> loss(x, y), parameters)
-        # Flux.Optimise.update!(optimizer, parameters, gradients)
-    end
-end
+toSaveKey="506"
+fid = h5open(pathToHDF55, "r+")
+
+
+#manual Modification array
+algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
+    name = "algoOutput",
+    # we point out that we will supply multiple colors
+    isContinuusMask=true,
+    colorSet = [getSomeColor(listOfColorUsed),getSomeColor(listOfColorUsed)]
+    ,minAndMaxValue= Float32.([0,1])# values between 0 and 1 as this represent probabilities
+   )
+
+    addTextSpecs=Vector{MedEye3d.ForDisplayStructs.TextureSpec}(undef,1)
+    addTextSpecs[1]=algoVisualization
+
+mainScrollDat= loadFromHdf5Prim(fid,toSaveKey,addTextSpecs,listOfColorUsed)
