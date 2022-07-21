@@ -51,17 +51,17 @@ sizes=Vector{Tuple{Int64, Int64, Int64}}(undef,length(zipped))
 noError=falses(length(zipped))#Vector{Bool}(false,length(zipped))
 chosen = zipped#[ifLiverPresent]
 
-# for (indexx,tupl) in enumerate(zipped)
-#         print("index $indexx ")
-#         #try
-#             loaded = LoadFromMonai.loadBySitkromImageAndLabelPaths(tupl[1],tupl[2],targetSpacing )
-#             noError[indexx]=true
-#             sizes[indexx]=size(loaded[1])
-#             print(size(loaded[1]))
-#         #catch
-#          #   print("error with $indexx")
-#         #end    
-# end    
+for (indexx,tupl) in enumerate(zipped)
+        print("index $indexx ")
+        #try
+            loaded = LoadFromMonai.loadBySitkromImageAndLabelPaths(tupl[1],tupl[2],targetSpacing )
+            noError[indexx]=true
+            sizes[indexx]=size(loaded[1])
+            print(size(loaded[1]))
+        #catch
+         #   print("error with $indexx")
+        #end    
+end    
 
 
 
@@ -70,12 +70,11 @@ sum(noError)
 # we get the maximum size so we will get in the en uniform size
 chosen = zipped
 
-maxX= 384 #Int(ceil(maximum(map(tupl->tupl[1],sizes))/64)*64)
-maxY= 384 #Int(ceil(maximum(map(tupl->tupl[2],sizes))/64)*64)
-maxZ= 384 #Int(ceil(maximum(map(tupl->tupl[3],sizes))/64)*64)
+maxX= Int(ceil(maximum(map(tupl->tupl[1],sizes))/64)*64)
+maxY= Int(ceil(maximum(map(tupl->tupl[2],sizes))/64)*64)
+maxZ= Int(ceil(maximum(map(tupl->tupl[3],sizes))/64)*64)
 
 print("maxes ($maxX , $maxY , $maxZ  )") 
-# print(chosen)
 
 #we save transformed data into hdf5 so we will not need to transform it on loading data into flux
 #one could consider doing it in parallel but would need to setup parallel HDF5 https://juliaio.github.io/HDF5.jl/stable/#Parallel-HDF5
@@ -107,9 +106,6 @@ for (indexx,tupl) in enumerate(chosen)
             labelArr[:,:,sizz[3]].=0
             #typeof(loaded[1])
 
-            # imageArr= reshape( image[1],(maxX,maxY, maxZ, 1, 1))
-            # labelArr= reshape( labelArr,(maxX,maxY, maxZ, 1, 1))
-
             saveMaskBeforeVisualization(fid,patienGroupName,image[1],"image", "CT" )
             saveMaskBeforeVisualization(fid,patienGroupName,Float32.(labelArr),"labelSet", "boolLabel" )
             writeGroupAttribute(fid,patienGroupName, "spacing", [1,1,1])
@@ -123,7 +119,5 @@ close(fid)
 
 #directory of folder with files in this directory all of the image files should be in subfolder volumes 0-49 and labels labels if one ill use lines below
 fid = h5open(pathToHDF5, "r+")
-
 keys(fid)
-
 close(fid)

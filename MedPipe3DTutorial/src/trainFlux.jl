@@ -33,7 +33,7 @@ using MLUtils
 CUDA.allowscalar(true)
 using CUDA: CuIterator
 using BSON
-include("/home/jakub/projects/MedPipe3DTutorial/MedPipe3DTutorial/src/Unet.jl")
+include("Unet.jl")
 using Pkg
 using Random
 using Unzip
@@ -44,9 +44,6 @@ using Base.Iterators
 First we need to iterate through data load it into Hdf5 and collect the sizes - sizes will be needed as neural network expect uniform sizes of all training and test cases so we will need to get biggest image and pad others accordingly
 code is based on https://github.com/Dale-Black/MedicalTutorials.jl/tree/master/src/3D_Segmentation/Heart
 """
-
-
-
 
 pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
 modelpath = joinpath("/media/jakub/NewVolume/projects", "modelB.bson")
@@ -62,16 +59,6 @@ batchSize=16
 
 model = UNet( 1,1,stages=4) |> gpu
 
-
-#model(rand(384,384,1,1)|>gpu)
-
-#rep = Iterators.repeated((w, w′), 10);
-# model = Flux.Chain(
-#     Unet(1, 1),
-#   Flux.softmax)|>gpu
-#model=Unet(1, 1)|>gpu
-
-# u = Unet(1)
 optimizer = Flux.ADAM(0.01)
 parameters = Flux.params(model);
 loss_function = Flux.Losses.dice_coeff_loss
@@ -131,13 +118,15 @@ for epoch in 1:nepochs
         Flux.Optimise.update!(optimizer, parameters, gradients)
     end
     print(" epoch ",epoch)
-
 end
 
 using BSON
 let model = cpu(model) ## return model to cpu before serialization
     BSON.@save modelpath model
 end
+
+
+
 
 
 using BSON: @load
@@ -187,39 +176,36 @@ algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
 
 mainScrollDat= loadFromHdf5Prim(fid,toSaveKey,addTextSpecs,listOfColorUsed)
 
-
 algoOutput= getArrByName("algoOutput" ,mainScrollDat)
 algoOutput[:,:,:]=modelOutputCat
-
 
 saveMaskbyName(fid,toSaveKey , mainScrollDat, "algoOutput", "contLabel")
 
 close(fid)
 
-maximum(modelOutputCat)
 
 
 
-using MedEye3d
+# using MedEye3d
 
-pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
-modelpath = joinpath("/media/jakub/NewVolume/projects", "modelB.bson")
-listOfColorUsed= falses(18)
+# pathToHDF55="/media/jakub/NewVolume/projects/bigDataSet.hdf5"
+# modelpath = joinpath("/media/jakub/NewVolume/projects", "modelB.bson")
+# listOfColorUsed= falses(18)
 
-toSaveKey="506"
-fid = h5open(pathToHDF55, "r+")
+# toSaveKey="506"
+# fid = h5open(pathToHDF55, "r+")
 
 
-#manual Modification array
-algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
-    name = "algoOutput",
-    # we point out that we will supply multiple colors
-    isContinuusMask=true,
-    colorSet = [getSomeColor(listOfColorUsed),getSomeColor(listOfColorUsed)]
-    ,minAndMaxValue= Float32.([0,1])# values between 0 and 1 as this represent probabilities
-   )
+# #manual Modification array
+# algoVisualization = MedEye3d.ForDisplayStructs.TextureSpec{Float32}(
+#     name = "algoOutput",
+#     # we point out that we will supply multiple colors
+#     isContinuusMask=true,
+#     colorSet = [getSomeColor(listOfColorUsed),getSomeColor(listOfColorUsed)]
+#     ,minAndMaxValue= Float32.([0,1])# values between 0 and 1 as this represent probabilities
+#    )
 
-    addTextSpecs=Vector{MedEye3d.ForDisplayStructs.TextureSpec}(undef,1)
-    addTextSpecs[1]=algoVisualization
+#     addTextSpecs=Vector{MedEye3d.ForDisplayStructs.TextureSpec}(undef,1)
+#     addTextSpecs[1]=algoVisualization
 
-mainScrollDat= loadFromHdf5Prim(fid,toSaveKey,addTextSpecs,listOfColorUsed)
+# mainScrollDat= loadFromHdf5Prim(fid,toSaveKey,addTextSpecs,listOfColorUsed)
