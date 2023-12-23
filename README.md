@@ -5,7 +5,9 @@ Showing how to use MedPipe (including MedEye3d  MedEval3D  HDF5 and MONAI prepro
 # First example
 Example is based on public dataset that can be found in link below
 
-https://wiki.cancerimagingarchive.net/display/Public/CT-ORG%3A+CT+volumes+with+multiple+organ+segmentations
+[https://wiki.cancerimagingarchive.net/display/Public/CT-ORG%3A+CT+volumes+with+multiple+organ+segmentations
+](https://wiki.cancerimagingarchive.net/plugins/servlet/mobile?contentId=61080890#content/view/61080890)
+
 
 labels without readme file should be put in the labels folder and volumes in "volumes 0-49" folder - there should be the same number of labels as volumes - you do not need to download all of them if you do not want to. 
 
