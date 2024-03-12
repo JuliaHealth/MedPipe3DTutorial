@@ -1,6 +1,10 @@
 # MedPipe3DTutorial
 Showing how to use MedPipe (including MedEye3d  MedEval3D  HDF5 and MONAI preprocessing)
 
+For simpler building you can use .devcontainer using remote development extension in vs code  - needed data will also be automatically uploaded
+
+If you are on linux you can share your screen with container using " xhost local:root " command - ATTENTION command is not fully safe read https://unix.stackexchange.com/questions/12755/how-to-forward-x-over-ssh-to-run-graphics-applications-remotely
+
 
 # First example
 Example is based on public dataset that can be found in link below
